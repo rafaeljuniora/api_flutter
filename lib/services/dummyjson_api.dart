@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 
 import '../models/user.dart';
 import '../models/cart.dart';
+import '../models/search_parameters.dart';
 
 /// Serviço leve para consumir DummyJSON:
 /// - Autenticação: POST /auth/login -> accessToken/refreshToken
@@ -88,13 +89,13 @@ class DummyJsonApi {
   /// Obtém os últimos N usuários (ordem por id desc se disponível).
   Future<List<User>> getLatestUsers({int limit = 10}) async {
     final uri = Uri.parse(
-        '$baseUrl/users?limit=$limit&sortBy=id&order=desc&select=id,firstName,lastName,username,email,image');
+        '$baseUrl/users?limit=$limit&sortBy=id&order=desc&select=id,firstName,lastName,username,email,image,gender,age');
     var res = await _getWithRetry(uri);
 
     if (res.statusCode != 200) {
       // fallback simples sem sortBy/order
       final fallback = Uri.parse(
-          '$baseUrl/users?limit=$limit&select=id,firstName,lastName,username,email,image');
+          '$baseUrl/users?limit=$limit&select=id,firstName,lastName,username,email,image,gender,age');
       res = await _getWithRetry(fallback);
       if (res.statusCode != 200) {
         throw Exception('Erro ao buscar users: ${res.statusCode} ${res.body}');
@@ -108,6 +109,102 @@ class DummyJsonApi {
     final map = jsonDecode(res.body) as Map<String, dynamic>;
     final list = (map['users'] as List).cast<Map<String, dynamic>>();
     return list.map(User.fromJson).toList();
+  }
+
+  /// Busca usuários com parâmetros combinados
+  Future<List<User>> searchUsers(SearchParameters params) async {
+    // Busca todos os usuários (sem limite) para aplicar filtros locais
+    final uri = Uri.parse('$baseUrl/users?limit=100&select=id,firstName,lastName,username,email,image,gender,age');
+    var res = await _getWithRetry(uri);
+
+    if (res.statusCode != 200) {
+      throw Exception('Erro ao buscar users: ${res.statusCode} ${res.body}');
+    }
+
+    final map = jsonDecode(res.body) as Map<String, dynamic>;
+    final allUsers = (map['users'] as List).cast<Map<String, dynamic>>();
+    
+    // Aplica filtros locais
+    List<User> filteredUsers = allUsers.map(User.fromJson).where((user) {
+      return _matchesSearchCriteria(user, params);
+    }).toList();
+
+    // Ordena por ID descendente
+    filteredUsers.sort((a, b) => b.id.compareTo(a.id));
+
+    // Aplica limite
+    return filteredUsers.take(params.limit).toList();
+  }
+
+  /// Verifica se um usuário atende aos critérios de busca
+  bool _matchesSearchCriteria(User user, SearchParameters params) {
+    // Filtro por nome (firstName ou lastName)
+    if (params.nameQuery?.isNotEmpty == true) {
+      final query = params.caseInsensitive 
+          ? params.nameQuery!.toLowerCase() 
+          : params.nameQuery!;
+      
+      final firstName = params.caseInsensitive 
+          ? user.firstName.toLowerCase() 
+          : user.firstName;
+      final lastName = params.caseInsensitive 
+          ? user.lastName.toLowerCase() 
+          : user.lastName;
+      final fullName = params.caseInsensitive 
+          ? user.fullName.toLowerCase() 
+          : user.fullName;
+      
+      if (!firstName.contains(query) && 
+          !lastName.contains(query) && 
+          !fullName.contains(query)) {
+        return false;
+      }
+    }
+
+    // Filtro por gênero
+    if (params.gender?.isNotEmpty == true) {
+      final userGender = params.caseInsensitive 
+          ? user.gender?.toLowerCase() 
+          : user.gender;
+      final searchGender = params.caseInsensitive 
+          ? params.gender!.toLowerCase() 
+          : params.gender!;
+      
+      if (userGender != searchGender) {
+        return false;
+      }
+    }
+
+    // Filtro por email
+    if (params.emailQuery?.isNotEmpty == true) {
+      final query = params.caseInsensitive 
+          ? params.emailQuery!.toLowerCase() 
+          : params.emailQuery!;
+      final email = params.caseInsensitive 
+          ? user.email.toLowerCase() 
+          : user.email;
+      
+      if (!email.contains(query)) {
+        return false;
+      }
+    }
+
+    // Filtro por idade
+    if (params.minAge != null || params.maxAge != null) {
+      if (user.age == null) {
+        return false;
+      }
+      
+      if (params.minAge != null && user.age! < params.minAge!) {
+        return false;
+      }
+      
+      if (params.maxAge != null && user.age! > params.maxAge!) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   /// Obtém os últimos N carrinhos.

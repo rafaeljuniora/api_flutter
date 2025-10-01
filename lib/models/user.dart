@@ -5,6 +5,8 @@ class User {
   final String username;
   final String email;
   final String? image;
+  final String? gender;
+  final int? age;
 
   User({
     required this.id,
@@ -13,6 +15,8 @@ class User {
     required this.username,
     required this.email,
     this.image,
+    this.gender,
+    this.age,
   });
 
   String get fullName => '$firstName $lastName';
@@ -25,6 +29,8 @@ class User {
       username: json['username'] as String? ?? '',
       email: json['email'] as String? ?? '',
       image: json['image'] as String?,
+      gender: json['gender'] as String?,
+      age: json['age'] as int?,
     );
   }
 }

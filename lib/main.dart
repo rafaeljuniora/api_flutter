@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'models/user.dart';
 import 'models/cart.dart';
+import 'models/search_parameters.dart';
 import 'services/dummyjson_api.dart';
+import 'widgets/search_dialog.dart';
 
 void main() {
   runApp(const DummyJsonApp());
@@ -148,6 +150,8 @@ class _HomePageState extends State<HomePage> {
   String? _error;
   List<User> _users = const [];
   List<Cart> _carts = const [];
+  SearchParameters _currentSearchParams = const SearchParameters();
+  bool _isSearchMode = false;
 
   Future<void> _fetch() async {
     setState(() {
@@ -163,11 +167,46 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         _users = results[0] as List<User>;
         _carts = results[1] as List<Cart>;
+        _isSearchMode = false;
       });
     } catch (e) {
       setState(() => _error = e.toString());
     } finally {
       setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _performSearch(SearchParameters params) async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final results = await Future.wait([
+        widget.api.searchUsers(params),
+        widget.api.getLatestCarts(limit: params.limit),
+      ]);
+      setState(() {
+        _users = results[0] as List<User>;
+        _carts = results[1] as List<Cart>;
+        _currentSearchParams = params;
+        _isSearchMode = true;
+      });
+    } catch (e) {
+      setState(() => _error = e.toString());
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _openSearchDialog() async {
+    final result = await showDialog<SearchParameters>(
+      context: context,
+      builder: (context) => SearchDialog(initialParams: _currentSearchParams),
+    );
+    
+    if (result != null) {
+      await _performSearch(result);
     }
   }
 
@@ -240,9 +279,62 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Últimos usuários & carrinhos')),
+      appBar: AppBar(
+        title: Text(_isSearchMode ? 'Busca Combinada' : 'Últimos usuários & carrinhos'),
+        actions: [
+          IconButton(
+            onPressed: _loading ? null : _openSearchDialog,
+            icon: const Icon(Icons.search),
+            tooltip: 'Busca Combinada',
+          ),
+          if (_isSearchMode)
+            IconButton(
+              onPressed: _loading ? null : _fetch,
+              icon: const Icon(Icons.clear),
+              tooltip: 'Voltar à lista normal',
+            ),
+        ],
+      ),
       body: Column(
         children: [
+          // Informações da busca atual
+          if (_isSearchMode)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              color: Theme.of(context).colorScheme.primaryContainer,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.filter_list,
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Critérios ativos:',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.onPrimaryContainer,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _currentSearchParams.searchDescription,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          
+          // Controles de busca
           Padding(
             padding: const EdgeInsets.all(12),
             child: Row(
@@ -263,6 +355,12 @@ class _HomePageState extends State<HomePage> {
                 FilledButton.icon(
                   onPressed: _loading ? null : _fetch,
                   icon: const Icon(Icons.refresh),
+                  label: const Text('Atualizar'),
+                ),
+                const SizedBox(width: 8),
+                OutlinedButton.icon(
+                  onPressed: _loading ? null : _openSearchDialog,
+                  icon: const Icon(Icons.search),
                   label: const Text('Buscar'),
                 ),
               ],
@@ -280,14 +378,67 @@ class _HomePageState extends State<HomePage> {
               children: [
                 const Text('Usuários', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
-                ..._users.map((u) => Card(
+                if (_users.isEmpty)
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        children: [
+                          Icon(
+                            _isSearchMode ? Icons.search_off : Icons.person_off,
+                            size: 48,
+                            color: Theme.of(context).colorScheme.outline,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            _isSearchMode 
+                                ? 'Nenhum usuário encontrado com os critérios especificados'
+                                : 'Nenhum usuário disponível',
+                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              color: Theme.of(context).colorScheme.outline,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          if (_isSearchMode) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              'Tente ajustar os filtros de busca',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: Theme.of(context).colorScheme.outline,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  ..._users.map((u) => Card(
                       child: ListTile(
                         leading: CircleAvatar(
                           backgroundImage: u.image != null ? NetworkImage(u.image!) : null,
                           child: u.image == null ? const Icon(Icons.person) : null,
                         ),
                         title: Text(u.fullName),
-                        subtitle: Text('@${u.username} • ${u.email}'),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('@${u.username} • ${u.email}'),
+                            if (u.gender != null || u.age != null)
+                              Text(
+                                [
+                                  if (u.gender != null) 
+                                    u.gender == 'male' ? 'Masculino' : 
+                                    u.gender == 'female' ? 'Feminino' : u.gender!,
+                                  if (u.age != null) '${u.age} anos',
+                                ].join(' • '),
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                              ),
+                          ],
+                        ),
                         trailing: Text('#${u.id}'),
                       ),
                     )),
