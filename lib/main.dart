@@ -173,7 +173,12 @@ class _HomePageState extends State<HomePage> {
   Future<void> _onSearchPressed() async {
     FocusScope.of(context).unfocus();
 
-    final newLimit = int.tryParse(_limitCtrl.text.trim()) ?? 10;
+    int newLimit = int.tryParse(_limitCtrl.text.trim()) ?? 10;
+
+    if (newLimit <= 0) {
+      newLimit = 10;
+      _limitCtrl.text = newLimit.toString(); 
+    }
 
     if (newLimit != _limit) {
       setState(() {
