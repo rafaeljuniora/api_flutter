@@ -91,8 +91,9 @@ class _LoginPageState extends State<LoginPage> {
                         labelText: 'Username',
                         prefixIcon: Icon(Icons.person),
                       ),
-                      validator: (v) =>
-                          (v == null || v.trim().isEmpty) ? 'Informe o user' : null,
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Informe o user'
+                          : null,
                     ),
                     const SizedBox(height: 8),
                     TextFormField(
@@ -133,7 +134,6 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-/// --- HOME: campo de texto para "N" e listas de Users/Carts ------------------
 class HomePage extends StatefulWidget {
   const HomePage({super.key, required this.api});
   final DummyJsonApi api;
@@ -149,6 +149,8 @@ class _HomePageState extends State<HomePage> {
   List<User> _users = const [];
   List<Cart> _carts = const [];
 
+  String _sortOption = 'ID Crescente';
+
   Future<void> _fetch() async {
     setState(() {
       _loading = true;
@@ -163,6 +165,7 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         _users = results[0] as List<User>;
         _carts = results[1] as List<Cart>;
+        _applySort();
       });
     } catch (e) {
       setState(() => _error = e.toString());
@@ -171,6 +174,24 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  void _applySort() {
+    setState(() {
+      switch (_sortOption) {
+        case 'ID Crescente':
+          _users.sort((a, b) => a.id.compareTo(b.id));
+          break;
+        case 'ID Decrescente':
+          _users.sort((a, b) => b.id.compareTo(a.id));
+          break;
+        case 'Nome Crescente':
+          _users.sort((a, b) => a.fullName.compareTo(b.fullName));
+          break;
+        case 'Nome Decrescente':
+          _users.sort((a, b) => b.fullName.compareTo(a.fullName));
+          break;
+      }
+    });
+  }
 
   void _openCart(Cart c) {
     showModalBottomSheet(
@@ -187,7 +208,8 @@ class _HomePageState extends State<HomePage> {
                 children: [
                   Text(
                     'Carrinho #${c.id} • User ${c.userId}',
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
                   Expanded(
@@ -195,13 +217,15 @@ class _HomePageState extends State<HomePage> {
                         ? const Center(child: Text('Sem itens neste carrinho.'))
                         : ListView.separated(
                             itemCount: c.products.length,
-                            separatorBuilder: (_, __) => const Divider(height: 1),
+                            separatorBuilder: (_, __) =>
+                                const Divider(height: 1),
                             itemBuilder: (context, i) {
                               final p = c.products[i];
                               return ListTile(
                                 dense: true,
                                 title: Text(p.title),
-                                subtitle: Text('${p.quantity} × ${p.price} = ${p.total}'),
+                                subtitle: Text(
+                                    '${p.quantity} × ${p.price} = ${p.total}'),
                                 trailing: Text('#${p.id}'),
                               );
                             },
@@ -268,6 +292,37 @@ class _HomePageState extends State<HomePage> {
               ],
             ),
           ),
+          // Dropdown de ordenação
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            child: Row(
+              children: [
+                const Text("Ordenar usuários por: "),
+                const SizedBox(width: 8),
+                DropdownButton<String>(
+                  value: _sortOption,
+                  items: const [
+                    DropdownMenuItem(
+                        value: 'ID Crescente', child: Text('ID Crescente')),
+                    DropdownMenuItem(
+                        value: 'ID Decrescente', child: Text('ID Decrescente')),
+                    DropdownMenuItem(
+                        value: 'Nome Crescente', child: Text('Nome Crescente')),
+                    DropdownMenuItem(
+                        value: 'Nome Decrescente',
+                        child: Text('Nome Decrescente')),
+                  ],
+                  onChanged: (v) {
+                    if (v == null) return;
+                    setState(() {
+                      _sortOption = v;
+                      _applySort();
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
           if (_error != null)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -278,13 +333,17 @@ class _HomePageState extends State<HomePage> {
             child: ListView(
               padding: const EdgeInsets.all(12),
               children: [
-                const Text('Usuários', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const Text('Usuários',
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
                 ..._users.map((u) => Card(
                       child: ListTile(
                         leading: CircleAvatar(
-                          backgroundImage: u.image != null ? NetworkImage(u.image!) : null,
-                          child: u.image == null ? const Icon(Icons.person) : null,
+                          backgroundImage:
+                              u.image != null ? NetworkImage(u.image!) : null,
+                          child:
+                              u.image == null ? const Icon(Icons.person) : null,
                         ),
                         title: Text(u.fullName),
                         subtitle: Text('@${u.username} • ${u.email}'),
@@ -292,7 +351,9 @@ class _HomePageState extends State<HomePage> {
                       ),
                     )),
                 const SizedBox(height: 16),
-                const Text('Carrinhos', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const Text('Carrinhos',
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
                 ..._carts.map((c) => Card(
                       child: ListTile(
