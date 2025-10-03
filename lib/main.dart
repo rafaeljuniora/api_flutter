@@ -91,9 +91,8 @@ class _LoginPageState extends State<LoginPage> {
                         labelText: 'Username',
                         prefixIcon: Icon(Icons.person),
                       ),
-                      validator: (v) => (v == null || v.trim().isEmpty)
-                          ? 'Informe o user'
-                          : null,
+                      validator: (v) =>
+                          (v == null || v.trim().isEmpty) ? 'Informe o user' : null,
                     ),
                     const SizedBox(height: 8),
                     TextFormField(
@@ -176,7 +175,6 @@ class _HomePageState extends State<HomePage> {
     FocusScope.of(context).unfocus();
 
     int newLimit = int.tryParse(_limitCtrl.text.trim()) ?? 10;
-
     if (newLimit <= 0) {
       newLimit = 10;
       _limitCtrl.text = newLimit.toString();
@@ -215,14 +213,6 @@ class _HomePageState extends State<HomePage> {
     }
 
     _applySort();
-  } catch (e) {
-    finally {{
-      if (mounted) {
-        setState(() { => _loading = false);
-        });
-      }
-    }
-  }
 
     if (!mounted) return;
 
@@ -419,7 +409,6 @@ class _HomePageState extends State<HomePage> {
               ],
             ),
           ),
-          // Dropdown de ordenação
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             child: Row(
