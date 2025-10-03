@@ -205,9 +205,21 @@ class _HomePageState extends State<HomePage> {
         widget.api.getLatestUsers(limit: n),
         widget.api.getLatestCarts(limit: n),
       ]);
+
+      final usersResponse = results[0] as Map<String, dynamic>;
+      final cartsResponse = results[1] as Map<String, dynamic>;
+
       setState(() {
-        _users = results[0] as List<User>;
-        _carts = results[1] as List<Cart>;
+        _users = (usersResponse['users'] as List)
+            .map((json) => User.fromJson(json))
+            .toList();
+        _totalUsers = usersResponse['total'];
+
+        _carts = (cartsResponse['carts'] as List)
+            .map((json) => Cart.fromJson(json))
+            .toList();
+        _totalCarts = cartsResponse['total'];
+
         _applySort();
       });
     } catch (e) {
