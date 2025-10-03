@@ -144,7 +144,6 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final _qtyCtrl = TextEditingController(text: '10');
   late TextEditingController _limitCtrl;
   int _limit = 10;
 
@@ -200,13 +199,11 @@ class _HomePageState extends State<HomePage> {
       _error = null;
     });
     try {
-      // Primeiro, busca usuários e carrinhos separadamente
       await Future.wait([
         _fetchUsers(),
         _fetchCarts(),
       ]);
 
-      // Depois aplica a ordenação de usuários
       _applySort();
     } catch (e) {
       setState(() => _error = e.toString());
