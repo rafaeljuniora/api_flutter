@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'models/user.dart';
 import 'models/cart.dart';
 import 'services/dummyjson_api.dart';
+import 'package:flutter/material.dart';
 
 void main() {
   runApp(const DummyJsonApp());
@@ -414,6 +415,75 @@ class _HomePageState extends State<HomePage> {
                         trailing: const Icon(Icons.shopping_cart_outlined),
                       ),
                     )),
+                class PaginaBusca extends StatefulWidget {
+                  @override
+                  _PaginaBuscaState createState() => _PaginaBuscaState();
+                }
+
+                class _PaginaBuscaState extends State<PaginaBusca> {
+                  final List<String> todosOsItens = [
+                    'Flutter',
+                    'Dart',
+                    'Android',
+                    'iOS',
+                    'Desenvolvimento',
+                    'Mobile',
+                  ];
+
+                  List<String> itensFiltrados = [];
+                  TextEditingController _controller = TextEditingController();
+
+                  @override
+                  void initState() {
+                    super.initState();
+                    itensFiltrados = todosOsItens;
+                    _controller.addListener(() {
+                      filtrarItens();
+                    });
+                  }
+
+                  void filtrarItens() {
+                    String termoBusca = _controller.text.toLowerCase();
+                    setState(() {
+                      itensFiltrados = todosOsItens.where((item) {
+                        return item.toLowerCase().contains(termoBusca);
+                      }).toList();
+                    });
+                  }
+
+                  @override
+                  Widget build(BuildContext context) {
+                    return Scaffold(
+                      appBar: AppBar(
+                        title: Text('Busca Insensível a Maiúsculas'),
+                      ),
+                      body: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Column(
+                          children: [
+                            TextField(
+                              controller: _controller,
+                              decoration: InputDecoration(
+                                labelText: 'Buscar',
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
+                            Expanded(
+                              child: ListView.builder(
+                                itemCount: itensFiltrados.length,
+                                itemBuilder: (context, index) {
+                                  return ListTile(
+                                    title: Text(itensFiltrados[index]),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+                }
               ],
             ),
           ),
