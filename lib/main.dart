@@ -24,7 +24,6 @@ class DummyJsonApp extends StatelessWidget {
   }
 }
 
-/// --- TELA DE LOGIN ---------------------------------------------------------
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -35,8 +34,8 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final _api = DummyJsonApi();
   final _form = GlobalKey<FormState>();
-  final _userCtrl = TextEditingController(text: 'emilys'); // exemplo
-  final _passCtrl = TextEditingController(text: 'emilyspass'); // exemplo
+  final _userCtrl = TextEditingController(text: 'emilys');
+  final _passCtrl = TextEditingController(text: 'emilyspass');
   bool _loading = false;
   String? _error;
 
@@ -57,8 +56,8 @@ class _LoginPageState extends State<LoginPage> {
           builder: (_) => HomePage(api: _api),
         ),
       );
-    } catch (e) {
-      setState(() => _error = e.toString());
+    } catch (_) {
+      setState(() => _error = 'Usuário ou senha incorretos. Tente novamente.');
     } finally {
       setState(() => _loading = false);
     }
@@ -134,7 +133,6 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-/// --- HOME: campo de texto para "N" e listas de Users/Carts ------------------
 class HomePage extends StatefulWidget {
   const HomePage({super.key, required this.api});
   final DummyJsonApi api;
@@ -196,18 +194,36 @@ class _HomePageState extends State<HomePage> {
       _loading = true;
       _error = null;
     });
+
+    bool userError = false;
+    bool cartError = false;
+
     try {
-      await Future.wait([
-        _fetchUsers(),
-        _fetchCarts(),
-      ]);
-    } catch (e) {
-      setState(() => _error = e.toString());
-    } finally {
-      if(mounted) {
-        setState(() => _loading = false);
-      }
+      await _fetchUsers().catchError((_) => userError = true);
+    } catch (_) {
+      userError = true;
     }
+
+    try {
+      await _fetchCarts().catchError((_) => cartError = true);
+    } catch (_) {
+      cartError = true;
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      if (userError && cartError) {
+        _error = 'Erro ao encontrar registro.';
+      } else if (userError) {
+        _error = 'Erro ao encontrar usuário.';
+      } else if (cartError) {
+        _error = 'Erro ao encontrar carrinho.';
+      } else {
+        _error = null;
+      }
+      _loading = false;
+    });
   }
 
   Future<void> _fetchUsers() async {
@@ -245,7 +261,6 @@ class _HomePageState extends State<HomePage> {
     setState(() => _cartsPage = page);
     _fetchCarts();
   }
-  
 
   void _openCart(Cart c) {
     showModalBottomSheet(
@@ -383,19 +398,27 @@ class _HomePageState extends State<HomePage> {
                   onPageChanged: _navigateUsers,
                 ),
                 const SizedBox(height: 8),
-                ..._users.map((u) => Card(
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundImage:
-                              u.image != null ? NetworkImage(u.image!) : null,
-                          child:
-                              u.image == null ? const Icon(Icons.person) : null,
+                if (_users.isEmpty)
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text('Nenhum usuário encontrado.'),
+                    ),
+                  )
+                else
+                  ..._users.map((u) => Card(
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundImage:
+                                u.image != null ? NetworkImage(u.image!) : null,
+                            child:
+                                u.image == null ? const Icon(Icons.person) : null,
+                          ),
+                          title: Text(u.fullName),
+                          subtitle: Text('@${u.username} • ${u.email}'),
+                          trailing: Text('#${u.id}'),
                         ),
-                        title: Text(u.fullName),
-                        subtitle: Text('@${u.username} • ${u.email}'),
-                        trailing: Text('#${u.id}'),
-                      ),
-                    )),
+                      )),
                 const SizedBox(height: 16),
                 const Text('Carrinhos',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
@@ -405,15 +428,23 @@ class _HomePageState extends State<HomePage> {
                   onPageChanged: _navigateCarts,
                 ),
                 const SizedBox(height: 8),
-                ..._carts.map((c) => Card(
-                      child: ListTile(
-                        onTap: () => _openCart(c),
-                        title: Text('Cart #${c.id} • User ${c.userId}'),
-                        subtitle: Text(
-                            '${c.totalProducts} prod. / ${c.totalQuantity} itens • total: ${c.total} (desc: ${c.discountedTotal})'),
-                        trailing: const Icon(Icons.shopping_cart_outlined),
-                      ),
-                    )),
+                if (_carts.isEmpty)
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text('Nenhum carrinho encontrado.'),
+                    ),
+                  )
+                else
+                  ..._carts.map((c) => Card(
+                        child: ListTile(
+                          onTap: () => _openCart(c),
+                          title: Text('Cart #${c.id} • User ${c.userId}'),
+                          subtitle: Text(
+                              '${c.totalProducts} prod. / ${c.totalQuantity} itens • total: ${c.total} (desc: ${c.discountedTotal})'),
+                          trailing: const Icon(Icons.shopping_cart_outlined),
+                        ),
+                      )),
               ],
             ),
           ),
