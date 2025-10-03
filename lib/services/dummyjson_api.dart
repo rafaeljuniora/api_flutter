@@ -26,7 +26,6 @@ class DummyJsonApi {
         if (_accessToken != null) 'Authorization': 'Bearer $_accessToken',
       };
 
-  /// Faz login e guarda o accessToken/refreshToken (Bearer).
   Future<void> login({
     required String username,
     required String password,
@@ -52,7 +51,6 @@ class DummyJsonApi {
     }
   }
 
-  /// Tenta renovar o accessToken usando o refreshToken.
   Future<bool> _tryRefresh({int expiresInMins = 30}) async {
     if (_refreshToken == null) return false;
     final uri = Uri.parse('$baseUrl/auth/refresh');
@@ -73,7 +71,6 @@ class DummyJsonApi {
     return false;
   }
 
-  /// GET com tentativa de refresh automático em caso de 401/403.
   Future<http.Response> _getWithRetry(Uri uri) async {
     var res = await _client.get(uri, headers: _baseHeaders);
     if (res.statusCode == 401 || res.statusCode == 403) {
@@ -85,7 +82,6 @@ class DummyJsonApi {
     return res;
   }
 
-  /// Método compatível com a main - retorna Map com paginação
   Future<Map<String, dynamic>> getLatestUsers({int limit = 10, int skip = 0}) async {
     final uri = Uri.parse(
         '$baseUrl/users?limit=$limit&skip=$skip&select=id,firstName,lastName,username,email,image,gender,age');
@@ -97,7 +93,6 @@ class DummyJsonApi {
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
-  /// Método simplificado para sua funcionalidade de busca
   Future<List<User>> getLatestUsersList({int limit = 10}) async {
     final uri = Uri.parse(
         '$baseUrl/users?limit=$limit&sortBy=id&order=desc&select=id,firstName,lastName,username,email,image,gender,age');
@@ -121,9 +116,7 @@ class DummyJsonApi {
     return list.map(User.fromJson).toList();
   }
 
-  /// Busca usuários com parâmetros combinados
   Future<List<User>> searchUsers(SearchParameters params) async {
-    // Busca todos os usuários (sem limite) para aplicar filtros locais
     final uri = Uri.parse('$baseUrl/users?limit=100&select=id,firstName,lastName,username,email,image,gender,age');
     var res = await _getWithRetry(uri);
 
@@ -134,21 +127,16 @@ class DummyJsonApi {
     final map = jsonDecode(res.body) as Map<String, dynamic>;
     final allUsers = (map['users'] as List).cast<Map<String, dynamic>>();
     
-    // Aplica filtros locais
     List<User> filteredUsers = allUsers.map(User.fromJson).where((user) {
       return _matchesSearchCriteria(user, params);
     }).toList();
 
-    // Ordena por ID descendente
     filteredUsers.sort((a, b) => b.id.compareTo(a.id));
 
-    // Aplica limite
     return filteredUsers.take(params.limit).toList();
   }
 
-  /// Verifica se um usuário atende aos critérios de busca
   bool _matchesSearchCriteria(User user, SearchParameters params) {
-    // Filtro por nome (firstName ou lastName)
     if (params.nameQuery?.isNotEmpty == true) {
       final query = params.caseInsensitive 
           ? params.nameQuery!.toLowerCase() 
@@ -214,7 +202,6 @@ class DummyJsonApi {
     return true;
   }
 
-  /// Método compatível com a main - retorna Map com paginação
   Future<Map<String, dynamic>> getLatestCarts({int limit = 10, int skip = 0}) async {
     final uri = Uri.parse('$baseUrl/carts?limit=$limit&skip=$skip');
     final res = await _getWithRetry(uri);
@@ -225,7 +212,6 @@ class DummyJsonApi {
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
-  /// Método simplificado para sua funcionalidade de busca
   Future<List<Cart>> getLatestCartsList({int limit = 10}) async {
     final trySorted =
         Uri.parse('$baseUrl/carts?limit=$limit&sortBy=id&order=desc');

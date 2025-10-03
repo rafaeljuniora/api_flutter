@@ -37,8 +37,8 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final _api = DummyJsonApi();
   final _form = GlobalKey<FormState>();
-  final _userCtrl = TextEditingController(text: 'emilys'); // exemplo
-  final _passCtrl = TextEditingController(text: 'emilyspass'); // exemplo
+  final _userCtrl = TextEditingController(text: 'emilys'); 
+  final _passCtrl = TextEditingController(text: 'emilyspass');
   bool _loading = false;
   String? _error;
 
