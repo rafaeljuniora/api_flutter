@@ -67,14 +67,12 @@ class DummyJsonApi {
     if (res.statusCode >= 200 && res.statusCode < 300) {
       final body = jsonDecode(res.body) as Map<String, dynamic>;
       _accessToken = body['accessToken'] as String?;
-      // pode vir um novo refreshToken
       _refreshToken = (body['refreshToken'] as String?) ?? _refreshToken;
       return true;
     }
     return false;
   }
 
-  /// GET com tentativa de refresh automático em caso de 401/403.
   Future<http.Response> _getWithRetry(Uri uri) async {
     var res = await _client.get(uri, headers: _baseHeaders);
     if (res.statusCode == 401 || res.statusCode == 403) {
@@ -86,14 +84,12 @@ class DummyJsonApi {
     return res;
   }
 
-  /// Obtém os últimos N usuários (ordem por id desc se disponível).
   Future<List<User>> getLatestUsers({int limit = 10}) async {
     final uri = Uri.parse(
         '$baseUrl/users?limit=$limit&sortBy=id&order=desc&select=id,firstName,lastName,username,email,image,gender,age');
     var res = await _getWithRetry(uri);
 
     if (res.statusCode != 200) {
-      // fallback simples sem sortBy/order
       final fallback = Uri.parse(
           '$baseUrl/users?limit=$limit&select=id,firstName,lastName,username,email,image,gender,age');
       res = await _getWithRetry(fallback);
@@ -161,7 +157,6 @@ class DummyJsonApi {
       }
     }
 
-    // Filtro por gênero
     if (params.gender?.isNotEmpty == true) {
       final userGender = params.caseInsensitive 
           ? user.gender?.toLowerCase() 
@@ -175,7 +170,6 @@ class DummyJsonApi {
       }
     }
 
-    // Filtro por email
     if (params.emailQuery?.isNotEmpty == true) {
       final query = params.caseInsensitive 
           ? params.emailQuery!.toLowerCase() 
@@ -189,7 +183,6 @@ class DummyJsonApi {
       }
     }
 
-    // Filtro por idade
     if (params.minAge != null || params.maxAge != null) {
       if (user.age == null) {
         return false;
@@ -207,8 +200,6 @@ class DummyJsonApi {
     return true;
   }
 
-  /// Obtém os últimos N carrinhos.
-  /// Se sortBy/order não estiver disponível, ordena localmente por id desc.
   Future<List<Cart>> getLatestCarts({int limit = 10}) async {
     final trySorted =
         Uri.parse('$baseUrl/carts?limit=$limit&sortBy=id&order=desc');

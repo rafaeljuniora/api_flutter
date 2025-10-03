@@ -297,7 +297,6 @@ class _HomePageState extends State<HomePage> {
       ),
       body: Column(
         children: [
-          // Informações da busca atual
           if (_isSearchMode)
             Container(
               width: double.infinity,
