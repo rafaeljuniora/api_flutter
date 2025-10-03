@@ -134,7 +134,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-/// --- HOME: campo de texto para "N" e listas de Users/Carts ------------------
+/// --- HOME: campo de texto para filtros e listas de Users/Carts ------------------
 class HomePage extends StatefulWidget {
   const HomePage({super.key, required this.api});
   final DummyJsonApi api;
@@ -145,8 +145,11 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   late TextEditingController _limitCtrl;
-  int _limit = 10;
+  late TextEditingController _nameCtrl;
+  late TextEditingController _emailCtrl;
+  late TextEditingController _genderCtrl;
 
+  int _limit = 10;
   int _usersPage = 1;
   int _cartsPage = 1;
   int _totalUsers = 0;
@@ -161,12 +164,18 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _limitCtrl = TextEditingController(text: _limit.toString());
+    _nameCtrl = TextEditingController();
+    _emailCtrl = TextEditingController();
+    _genderCtrl = TextEditingController();
     _fetchAll();
   }
 
   @override
   void dispose() {
     _limitCtrl.dispose();
+    _nameCtrl.dispose();
+    _emailCtrl.dispose();
+    _genderCtrl.dispose();
     super.dispose();
   }
 
@@ -174,19 +183,16 @@ class _HomePageState extends State<HomePage> {
     FocusScope.of(context).unfocus();
 
     int newLimit = int.tryParse(_limitCtrl.text.trim()) ?? 10;
-
     if (newLimit <= 0) {
       newLimit = 10;
-      _limitCtrl.text = newLimit.toString(); 
+      _limitCtrl.text = newLimit.toString();
     }
 
-    if (newLimit != _limit) {
-      setState(() {
-        _limit = newLimit;
-        _usersPage = 1;
-        _cartsPage = 1;
-      });
-    }
+    setState(() {
+      _limit = newLimit;
+      _usersPage = 1;
+      _cartsPage = 1;
+    });
 
     await _fetchAll();
   }
@@ -204,23 +210,63 @@ class _HomePageState extends State<HomePage> {
     } catch (e) {
       setState(() => _error = e.toString());
     } finally {
-      if(mounted) {
-        setState(() => _loading = false);
-      }
+      if (mounted) setState(() => _loading = false);
     }
   }
 
+  /// --- USUÁRIOS COM FILTROS AVANÇADOS
   Future<void> _fetchUsers() async {
-    final skip = (_usersPage - 1) * _limit;
-    final response = await widget.api.getLatestUsers(limit: _limit, skip: skip);
-    if (!mounted) return;
-
     setState(() {
-      _users = (response['users'] as List)
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final skip = (_usersPage - 1) * _limit;
+
+      final response = await widget.api.getLatestUsers(limit: 100, skip: 0);
+      if (!mounted) return;
+
+      List<User> users = (response['users'] as List)
           .map((json) => User.fromJson(json))
           .toList();
-      _totalUsers = response['total'];
-    });
+
+      // Filtros
+      final nameFilter = _nameCtrl.text.toLowerCase();
+      final emailFilter = _emailCtrl.text.toLowerCase();
+      final genderFilter = _genderCtrl.text.toLowerCase();
+
+      if (nameFilter.isNotEmpty) {
+        users = users
+            .where((u) => (u.fullName ?? '').toLowerCase().contains(nameFilter))
+            .toList();
+      }
+
+      if (emailFilter.isNotEmpty) {
+        users = users
+            .where((u) => (u.email ?? '').toLowerCase().contains(emailFilter))
+            .toList();
+      }
+
+      if (genderFilter.isNotEmpty) {
+        users = users
+            .where((u) => (u.gender ?? '').toLowerCase() == genderFilter)
+            .toList();
+      }
+
+      // Paginação pós-filtro
+      final totalFiltered = users.length;
+      final pagedUsers = users.skip(skip).take(_limit).toList();
+
+      setState(() {
+        _users = pagedUsers;
+        _totalUsers = totalFiltered;
+      });
+    } catch (e) {
+      setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   Future<void> _fetchCarts() async {
@@ -245,7 +291,6 @@ class _HomePageState extends State<HomePage> {
     setState(() => _cartsPage = page);
     _fetchCarts();
   }
-  
 
   void _openCart(Cart c) {
     showModalBottomSheet(
@@ -338,29 +383,74 @@ class _HomePageState extends State<HomePage> {
         children: [
           Padding(
             padding: const EdgeInsets.all(12),
-            child: Row(
+            child: Column(
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: _limitCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Limite por página',
-                      prefixIcon: Icon(Icons.filter_list),
-                      border: OutlineInputBorder(),
+                // --- FILTROS AVANÇADOS
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _nameCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Nome',
+                          prefixIcon: Icon(Icons.person),
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
                     ),
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    onSubmitted: (_) => _onSearchPressed(),
-                  ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: _emailCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'E-mail',
+                          prefixIcon: Icon(Icons.email),
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: null,
+                        items: const [
+                          DropdownMenuItem(value: 'male', child: Text('Masculino')),
+                          DropdownMenuItem(value: 'female', child: Text('Feminino')),
+                        ],
+                        onChanged: (v) => _genderCtrl.text = v ?? '',
+                        decoration: const InputDecoration(
+                          labelText: 'Gênero',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                FilledButton.icon(
-                  onPressed: _loading ? null : _onSearchPressed,
-                  icon: const Icon(Icons.search),
-                  label: const Text('Buscar'),
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16)
-                  ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _limitCtrl,
+                        decoration: const InputDecoration(
+                          labelText: 'Limite por página',
+                          prefixIcon: Icon(Icons.filter_list),
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        onSubmitted: (_) => _onSearchPressed(),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    FilledButton.icon(
+                      onPressed: _loading ? null : _onSearchPressed,
+                      icon: const Icon(Icons.search),
+                      label: const Text('Buscar'),
+                      style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16)),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -375,6 +465,7 @@ class _HomePageState extends State<HomePage> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
               children: [
+                const SizedBox(height: 12),
                 const Text('Usuários',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 _buildPaginationControls(
@@ -388,11 +479,10 @@ class _HomePageState extends State<HomePage> {
                         leading: CircleAvatar(
                           backgroundImage:
                               u.image != null ? NetworkImage(u.image!) : null,
-                          child:
-                              u.image == null ? const Icon(Icons.person) : null,
+                          child: u.image == null ? const Icon(Icons.person) : null,
                         ),
                         title: Text(u.fullName),
-                        subtitle: Text('@${u.username} • ${u.email}'),
+                        subtitle: Text('@${u.username} • ${u.email} • ${u.gender ?? "?"}'),
                         trailing: Text('#${u.id}'),
                       ),
                     )),
