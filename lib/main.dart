@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'models/user.dart';
 import 'models/cart.dart';
 import 'services/dummyjson_api.dart';
@@ -144,6 +145,14 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final _qtyCtrl = TextEditingController(text: '10');
+  late TextEditingController _limitCtrl;
+  int _limit = 10;
+
+  int _usersPage = 1;
+  int _cartsPage = 1;
+  int _totalUsers = 0;
+  int _totalCarts = 0;
+
   bool _loading = false;
   String? _error;
   List<User> _users = const [];
@@ -151,7 +160,41 @@ class _HomePageState extends State<HomePage> {
 
   String _sortOption = 'ID Crescente';
 
-  Future<void> _fetch() async {
+  @override
+  void initState() {
+    super.initState();
+    _limitCtrl = TextEditingController(text: _limit.toString());
+    _fetchAll();
+  }
+
+  @override
+  void dispose() {
+    _limitCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _onSearchPressed() async {
+    FocusScope.of(context).unfocus();
+
+    int newLimit = int.tryParse(_limitCtrl.text.trim()) ?? 10;
+
+    if (newLimit <= 0) {
+      newLimit = 10;
+      _limitCtrl.text = newLimit.toString();
+    }
+
+    if (newLimit != _limit) {
+      setState(() {
+        _limit = newLimit;
+        _usersPage = 1;
+        _cartsPage = 1;
+      });
+    }
+
+    await _fetchAll();
+  }
+
+  Future<void> _fetchAll() async {
     setState(() {
       _loading = true;
       _error = null;
@@ -170,8 +213,46 @@ class _HomePageState extends State<HomePage> {
     } catch (e) {
       setState(() => _error = e.toString());
     } finally {
-      setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
+  }
+
+  Future<void> _fetchUsers() async {
+    final skip = (_usersPage - 1) * _limit;
+    final response = await widget.api.getLatestUsers(limit: _limit, skip: skip);
+    if (!mounted) return;
+
+    setState(() {
+      _users = (response['users'] as List)
+          .map((json) => User.fromJson(json))
+          .toList();
+      _totalUsers = response['total'];
+    });
+  }
+
+  Future<void> _fetchCarts() async {
+    final skip = (_cartsPage - 1) * _limit;
+    final response = await widget.api.getLatestCarts(limit: _limit, skip: skip);
+    if (!mounted) return;
+
+    setState(() {
+      _carts = (response['carts'] as List)
+          .map((json) => Cart.fromJson(json))
+          .toList();
+      _totalCarts = response['total'];
+    });
+  }
+
+  void _navigateUsers(int page) {
+    setState(() => _usersPage = page);
+    _fetchUsers();
+  }
+
+  void _navigateCarts(int page) {
+    setState(() => _cartsPage = page);
+    _fetchCarts();
   }
 
   void _applySort() {
@@ -255,10 +336,31 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _fetch();
+  Widget _buildPaginationControls({
+    required int currentPage,
+    required int totalItems,
+    required ValueChanged<int> onPageChanged,
+  }) {
+    final totalPages = (totalItems / _limit).ceil();
+    if (totalPages <= 1) return const SizedBox.shrink();
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        IconButton(
+          icon: const Icon(Icons.chevron_left),
+          onPressed:
+              currentPage > 1 ? () => onPageChanged(currentPage - 1) : null,
+        ),
+        Text('Página $currentPage de $totalPages'),
+        IconButton(
+          icon: const Icon(Icons.chevron_right),
+          onPressed: currentPage < totalPages
+              ? () => onPageChanged(currentPage + 1)
+              : null,
+        ),
+      ],
+    );
   }
 
   @override
@@ -273,21 +375,25 @@ class _HomePageState extends State<HomePage> {
               children: [
                 Expanded(
                   child: TextField(
-                    controller: _qtyCtrl,
-                    keyboardType: TextInputType.number,
+                    controller: _limitCtrl,
                     decoration: const InputDecoration(
-                      labelText: 'Quantidade (N)',
-                      hintText: 'Ex.: 10',
-                      prefixIcon: Icon(Icons.filter_1),
+                      labelText: 'Limite por página',
+                      prefixIcon: Icon(Icons.filter_list),
+                      border: OutlineInputBorder(),
                     ),
-                    onSubmitted: (_) => _fetch(),
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    onSubmitted: (_) => _onSearchPressed(),
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 12),
                 FilledButton.icon(
-                  onPressed: _loading ? null : _fetch,
-                  icon: const Icon(Icons.refresh),
+                  onPressed: _loading ? null : _onSearchPressed,
+                  icon: const Icon(Icons.search),
                   label: const Text('Buscar'),
+                  style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 16, horizontal: 16)),
                 ),
               ],
             ),
@@ -331,11 +437,16 @@ class _HomePageState extends State<HomePage> {
           if (_loading) const LinearProgressIndicator(),
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
               children: [
                 const Text('Usuários',
                     style:
                         TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                _buildPaginationControls(
+                  currentPage: _usersPage,
+                  totalItems: _totalUsers,
+                  onPageChanged: _navigateUsers,
+                ),
                 const SizedBox(height: 8),
                 ..._users.map((u) => Card(
                       child: ListTile(
@@ -354,13 +465,18 @@ class _HomePageState extends State<HomePage> {
                 const Text('Carrinhos',
                     style:
                         TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                _buildPaginationControls(
+                  currentPage: _cartsPage,
+                  totalItems: _totalCarts,
+                  onPageChanged: _navigateCarts,
+                ),
                 const SizedBox(height: 8),
                 ..._carts.map((c) => Card(
                       child: ListTile(
                         onTap: () => _openCart(c),
                         title: Text('Cart #${c.id} • User ${c.userId}'),
                         subtitle: Text(
-                            '${c.totalProducts} prod. / ${c.totalQuantity} itens • total: ${c.total.toString()} (desc: ${c.discountedTotal.toString()})'),
+                            '${c.totalProducts} prod. / ${c.totalQuantity} itens • total: ${c.total} (desc: ${c.discountedTotal})'),
                         trailing: const Icon(Icons.shopping_cart_outlined),
                       ),
                     )),
