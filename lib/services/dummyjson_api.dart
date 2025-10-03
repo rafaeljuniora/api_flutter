@@ -73,6 +73,7 @@ class DummyJsonApi {
     return false;
   }
 
+  /// GET com tentativa de refresh automático em caso de 401/403.
   Future<http.Response> _getWithRetry(Uri uri) async {
     var res = await _client.get(uri, headers: _baseHeaders);
     if (res.statusCode == 401 || res.statusCode == 403) {
@@ -84,7 +85,20 @@ class DummyJsonApi {
     return res;
   }
 
-  Future<List<User>> getLatestUsers({int limit = 10}) async {
+  /// Método compatível com a main - retorna Map com paginação
+  Future<Map<String, dynamic>> getLatestUsers({int limit = 10, int skip = 0}) async {
+    final uri = Uri.parse(
+        '$baseUrl/users?limit=$limit&skip=$skip&select=id,firstName,lastName,username,email,image,gender,age');
+    final res = await _getWithRetry(uri);
+
+    if (res.statusCode != 200) {
+      throw Exception('Erro ao buscar users: ${res.statusCode} ${res.body}');
+    }
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  /// Método simplificado para sua funcionalidade de busca
+  Future<List<User>> getLatestUsersList({int limit = 10}) async {
     final uri = Uri.parse(
         '$baseUrl/users?limit=$limit&sortBy=id&order=desc&select=id,firstName,lastName,username,email,image,gender,age');
     var res = await _getWithRetry(uri);
@@ -200,13 +214,24 @@ class DummyJsonApi {
     return true;
   }
 
-  Future<List<Cart>> getLatestCarts({int limit = 10}) async {
+  /// Método compatível com a main - retorna Map com paginação
+  Future<Map<String, dynamic>> getLatestCarts({int limit = 10, int skip = 0}) async {
+    final uri = Uri.parse('$baseUrl/carts?limit=$limit&skip=$skip');
+    final res = await _getWithRetry(uri);
+
+    if (res.statusCode != 200) {
+      throw Exception('Erro ao buscar carts: ${res.statusCode} ${res.body}');
+    }
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  /// Método simplificado para sua funcionalidade de busca
+  Future<List<Cart>> getLatestCartsList({int limit = 10}) async {
     final trySorted =
         Uri.parse('$baseUrl/carts?limit=$limit&sortBy=id&order=desc');
     var res = await _getWithRetry(trySorted);
 
     if (res.statusCode != 200) {
-      // fallback sem sort, depois ordena localmente
       final fallback = Uri.parse('$baseUrl/carts?limit=$limit');
       res = await _getWithRetry(fallback);
       if (res.statusCode != 200) {
