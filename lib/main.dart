@@ -92,8 +92,9 @@ class _LoginPageState extends State<LoginPage> {
                         labelText: 'Username',
                         prefixIcon: Icon(Icons.person),
                       ),
-                      validator: (v) =>
-                          (v == null || v.trim().isEmpty) ? 'Informe o user' : null,
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Informe o user'
+                          : null,
                     ),
                     const SizedBox(height: 8),
                     TextFormField(
@@ -134,7 +135,6 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-/// --- HOME: campo de texto para "N" e listas de Users/Carts ------------------
 class HomePage extends StatefulWidget {
   const HomePage({super.key, required this.api});
   final DummyJsonApi api;
@@ -144,6 +144,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  final _qtyCtrl = TextEditingController(text: '10');
   late TextEditingController _limitCtrl;
   int _limit = 10;
 
@@ -156,6 +157,8 @@ class _HomePageState extends State<HomePage> {
   String? _error;
   List<User> _users = const [];
   List<Cart> _carts = const [];
+
+  String _sortOption = 'ID Crescente';
 
   @override
   void initState() {
@@ -177,7 +180,7 @@ class _HomePageState extends State<HomePage> {
 
     if (newLimit <= 0) {
       newLimit = 10;
-      _limitCtrl.text = newLimit.toString(); 
+      _limitCtrl.text = newLimit.toString();
     }
 
     if (newLimit != _limit) {
@@ -197,14 +200,18 @@ class _HomePageState extends State<HomePage> {
       _error = null;
     });
     try {
+      // Primeiro, busca usuários e carrinhos separadamente
       await Future.wait([
         _fetchUsers(),
         _fetchCarts(),
       ]);
+
+      // Depois aplica a ordenação de usuários
+      _applySort();
     } catch (e) {
       setState(() => _error = e.toString());
     } finally {
-      if(mounted) {
+      if (mounted) {
         setState(() => _loading = false);
       }
     }
@@ -245,7 +252,25 @@ class _HomePageState extends State<HomePage> {
     setState(() => _cartsPage = page);
     _fetchCarts();
   }
-  
+
+  void _applySort() {
+    setState(() {
+      switch (_sortOption) {
+        case 'ID Crescente':
+          _users.sort((a, b) => a.id.compareTo(b.id));
+          break;
+        case 'ID Decrescente':
+          _users.sort((a, b) => b.id.compareTo(a.id));
+          break;
+        case 'Nome Crescente':
+          _users.sort((a, b) => a.fullName.compareTo(b.fullName));
+          break;
+        case 'Nome Decrescente':
+          _users.sort((a, b) => b.fullName.compareTo(a.fullName));
+          break;
+      }
+    });
+  }
 
   void _openCart(Cart c) {
     showModalBottomSheet(
@@ -262,7 +287,8 @@ class _HomePageState extends State<HomePage> {
                 children: [
                   Text(
                     'Carrinho #${c.id} • User ${c.userId}',
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
                   Expanded(
@@ -270,13 +296,15 @@ class _HomePageState extends State<HomePage> {
                         ? const Center(child: Text('Sem itens neste carrinho.'))
                         : ListView.separated(
                             itemCount: c.products.length,
-                            separatorBuilder: (_, __) => const Divider(height: 1),
+                            separatorBuilder: (_, __) =>
+                                const Divider(height: 1),
                             itemBuilder: (context, i) {
                               final p = c.products[i];
                               return ListTile(
                                 dense: true,
                                 title: Text(p.title),
-                                subtitle: Text('${p.quantity} × ${p.price} = ${p.total}'),
+                                subtitle: Text(
+                                    '${p.quantity} × ${p.price} = ${p.total}'),
                                 trailing: Text('#${p.id}'),
                               );
                             },
@@ -319,12 +347,15 @@ class _HomePageState extends State<HomePage> {
       children: [
         IconButton(
           icon: const Icon(Icons.chevron_left),
-          onPressed: currentPage > 1 ? () => onPageChanged(currentPage - 1) : null,
+          onPressed:
+              currentPage > 1 ? () => onPageChanged(currentPage - 1) : null,
         ),
         Text('Página $currentPage de $totalPages'),
         IconButton(
           icon: const Icon(Icons.chevron_right),
-          onPressed: currentPage < totalPages ? () => onPageChanged(currentPage + 1) : null,
+          onPressed: currentPage < totalPages
+              ? () => onPageChanged(currentPage + 1)
+              : null,
         ),
       ],
     );
@@ -359,8 +390,39 @@ class _HomePageState extends State<HomePage> {
                   icon: const Icon(Icons.search),
                   label: const Text('Buscar'),
                   style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16)
-                  ),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 16, horizontal: 16)),
+                ),
+              ],
+            ),
+          ),
+          // Dropdown de ordenação
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            child: Row(
+              children: [
+                const Text("Ordenar usuários por: "),
+                const SizedBox(width: 8),
+                DropdownButton<String>(
+                  value: _sortOption,
+                  items: const [
+                    DropdownMenuItem(
+                        value: 'ID Crescente', child: Text('ID Crescente')),
+                    DropdownMenuItem(
+                        value: 'ID Decrescente', child: Text('ID Decrescente')),
+                    DropdownMenuItem(
+                        value: 'Nome Crescente', child: Text('Nome Crescente')),
+                    DropdownMenuItem(
+                        value: 'Nome Decrescente',
+                        child: Text('Nome Decrescente')),
+                  ],
+                  onChanged: (v) {
+                    if (v == null) return;
+                    setState(() {
+                      _sortOption = v;
+                      _applySort();
+                    });
+                  },
                 ),
               ],
             ),
@@ -376,7 +438,8 @@ class _HomePageState extends State<HomePage> {
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
               children: [
                 const Text('Usuários',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 _buildPaginationControls(
                   currentPage: _usersPage,
                   totalItems: _totalUsers,
@@ -398,7 +461,8 @@ class _HomePageState extends State<HomePage> {
                     )),
                 const SizedBox(height: 16),
                 const Text('Carrinhos',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 _buildPaginationControls(
                   currentPage: _cartsPage,
                   totalItems: _totalCarts,
