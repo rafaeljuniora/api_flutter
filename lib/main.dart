@@ -198,7 +198,7 @@ class _HomePageState extends State<HomePage> {
       setState(() => _loading = false);
     }
   }
-dsadsa
+
   Future<void> _openSearchDialog() async {
     final result = await showDialog<SearchParameters>(
       context: context,
