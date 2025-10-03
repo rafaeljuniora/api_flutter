@@ -45,7 +45,7 @@ class DummyJsonApi {
 
     if (res.statusCode >= 200 && res.statusCode < 300) {
       final body = jsonDecode(res.body) as Map<String, dynamic>;
-      _accessToken = body['token'] as String?;
+      _accessToken = body['accessToken'] as String?;
       _refreshToken = body['refreshToken'] as String?;
     } else {
       throw Exception('Falha no login (${res.statusCode}): ${res.body}');
@@ -66,7 +66,8 @@ class DummyJsonApi {
     );
     if (res.statusCode >= 200 && res.statusCode < 300) {
       final body = jsonDecode(res.body) as Map<String, dynamic>;
-      _accessToken = body['token'] as String?;
+      _accessToken = body['accessToken'] as String?;
+      // pode vir um novo refreshToken
       _refreshToken = (body['refreshToken'] as String?) ?? _refreshToken;
       return true;
     }
@@ -85,22 +86,29 @@ class DummyJsonApi {
     return res;
   }
 
-  Future<Map<String, dynamic>> getLatestUsers(
-      {int limit = 10, int skip = 0}) async {
+  /// Obtém os últimos N usuários (ordem por id desc se disponível).
+  Future<List<User>> getLatestUsers({int limit = 10}) async {
     final uri = Uri.parse(
-        '$baseUrl/users?limit=$limit&skip=$skip&select=id,firstName,lastName,username,email,image,gender,age');
+        '$baseUrl/users?limit=$limit&sortBy=id&order=desc&select=id,firstName,lastName,username,email,image,gender,age');
     var res = await _getWithRetry(uri);
 
     if (res.statusCode != 200) {
       // fallback simples sem sortBy/order
       final fallback = Uri.parse(
-          '$baseUrl/users?limit=$limit&skip=$skip&select=id,firstName,lastName,username,email,image,gender,age');
+          '$baseUrl/users?limit=$limit&select=id,firstName,lastName,username,email,image,gender,age');
       res = await _getWithRetry(fallback);
       if (res.statusCode != 200) {
         throw Exception('Erro ao buscar users: ${res.statusCode} ${res.body}');
       }
+      final map = jsonDecode(res.body) as Map<String, dynamic>;
+      final list = (map['users'] as List).cast<Map<String, dynamic>>();
+      list.sort((a, b) => (b['id'] as int).compareTo(a['id'] as int));
+      return list.map(User.fromJson).toList();
     }
-    return jsonDecode(res.body) as Map<String, dynamic>;
+
+    final map = jsonDecode(res.body) as Map<String, dynamic>;
+    final list = (map['users'] as List).cast<Map<String, dynamic>>();
+    return list.map(User.fromJson).toList();
   }
 
   /// Busca usuários com parâmetros combinados
@@ -199,14 +207,28 @@ class DummyJsonApi {
     return true;
   }
 
-  Future<Map<String, dynamic>> getLatestCarts(
-      {int limit = 10, int skip = 0}) async {
-    final uri = Uri.parse('$baseUrl/carts?limit=$limit&skip=$skip');
-    final res = await _getWithRetry(uri);
+  /// Obtém os últimos N carrinhos.
+  /// Se sortBy/order não estiver disponível, ordena localmente por id desc.
+  Future<List<Cart>> getLatestCarts({int limit = 10}) async {
+    final trySorted =
+        Uri.parse('$baseUrl/carts?limit=$limit&sortBy=id&order=desc');
+    var res = await _getWithRetry(trySorted);
 
     if (res.statusCode != 200) {
-      throw Exception('Erro ao buscar carts: ${res.statusCode} ${res.body}');
+      // fallback sem sort, depois ordena localmente
+      final fallback = Uri.parse('$baseUrl/carts?limit=$limit');
+      res = await _getWithRetry(fallback);
+      if (res.statusCode != 200) {
+        throw Exception('Erro ao buscar carts: ${res.statusCode} ${res.body}');
+      }
+      final map = jsonDecode(res.body) as Map<String, dynamic>;
+      final list = (map['carts'] as List).cast<Map<String, dynamic>>();
+      list.sort((a, b) => (b['id'] as int).compareTo(a['id'] as int));
+      return list.map(Cart.fromJson).toList();
     }
-    return jsonDecode(res.body) as Map<String, dynamic>;
+
+    final map = jsonDecode(res.body) as Map<String, dynamic>;
+    final list = (map['carts'] as List).cast<Map<String, dynamic>>();
+    return list.map(Cart.fromJson).toList();
   }
 }

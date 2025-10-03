@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/search_parameters.dart';
 
-/// Diálogo para configuração de busca combinada
 class SearchDialog extends StatefulWidget {
   final SearchParameters initialParams;
 
@@ -67,7 +66,6 @@ class _SearchDialogState extends State<SearchDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Campo de busca por nome
             TextField(
               controller: _nameController,
               decoration: const InputDecoration(
@@ -79,7 +77,6 @@ class _SearchDialogState extends State<SearchDialog> {
             ),
             const SizedBox(height: 16),
 
-            // Campo de busca por email
             TextField(
               controller: _emailController,
               decoration: const InputDecoration(
@@ -91,7 +88,6 @@ class _SearchDialogState extends State<SearchDialog> {
             ),
             const SizedBox(height: 16),
 
-            // Seletor de gênero
             DropdownButtonFormField<String>(
               value: _selectedGender,
               decoration: const InputDecoration(
@@ -112,7 +108,6 @@ class _SearchDialogState extends State<SearchDialog> {
             ),
             const SizedBox(height: 16),
 
-            // Campos de idade
             Row(
               children: [
                 Expanded(
@@ -144,7 +139,6 @@ class _SearchDialogState extends State<SearchDialog> {
             ),
             const SizedBox(height: 16),
 
-            // Campo de limite
             TextField(
               controller: _limitController,
               keyboardType: TextInputType.number,
@@ -157,7 +151,6 @@ class _SearchDialogState extends State<SearchDialog> {
             ),
             const SizedBox(height: 16),
 
-            // Checkbox para busca case-insensitive
             CheckboxListTile(
               title: const Text('Busca insensível a maiúsculas/minúsculas'),
               subtitle: const Text('"Ana" encontrará "ana", "ANA", etc.'),
@@ -175,7 +168,6 @@ class _SearchDialogState extends State<SearchDialog> {
       actions: [
         TextButton(
           onPressed: () {
-            // Limpar todos os campos
             setState(() {
               _nameController.clear();
               _emailController.clear();

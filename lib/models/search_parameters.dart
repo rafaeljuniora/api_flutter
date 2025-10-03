@@ -1,4 +1,3 @@
-/// Parâmetros para busca combinada de usuários
 class SearchParameters {
   final String? nameQuery;
   final String? gender;
@@ -18,7 +17,6 @@ class SearchParameters {
     this.caseInsensitive = true,
   });
 
-  /// Cria uma cópia com novos valores
   SearchParameters copyWith({
     String? nameQuery,
     String? gender,
@@ -39,7 +37,6 @@ class SearchParameters {
     );
   }
 
-  /// Verifica se há algum parâmetro de busca definido
   bool get hasSearchCriteria {
     return nameQuery?.isNotEmpty == true ||
         gender?.isNotEmpty == true ||
@@ -48,7 +45,6 @@ class SearchParameters {
         maxAge != null;
   }
 
-  /// Retorna uma descrição dos critérios de busca
   String get searchDescription {
     final criteria = <String>[];
     
