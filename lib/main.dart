@@ -198,18 +198,46 @@ class _HomePageState extends State<HomePage> {
       _loading = true;
       _error = null;
     });
+
+    bool userError = false;
+    bool cartError = false;
+
     try {
-      await Future.wait([
-        _fetchUsers(),
-        _fetchCarts(),
-      ]);
-    } catch (e) {
-      setState(() => _error = e.toString());
-    } finally {
-      if(mounted) {
-        setState(() => _loading = false);
+      await _fetchUsers().catchError((_) => userError = true);
+    } catch (_) {
+      userError = true;
+    }
+
+    try {
+      await _fetchCarts().catchError((_) => cartError = true);
+    } catch (_) {
+      cartError = true;
+    }
+
+    _applySort();
+  } catch (e) {
+    finally {{
+      if (mounted) {
+        setState(() { => _loading = false);
+        });
       }
     }
+  }
+
+    if (!mounted) return;
+
+    setState(() {
+      if (userError && cartError) {
+        _error = 'Erro ao encontrar registro.';
+      } else if (userError) {
+        _error = 'Erro ao encontrar usuário.';
+      } else if (cartError) {
+        _error = 'Erro ao encontrar carrinho.';
+      } else {
+        _error = null;
+      }
+      _loading = false;
+    });
   }
 
   Future<void> _fetchUsers() async {
