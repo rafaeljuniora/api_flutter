@@ -162,12 +162,10 @@ class _HomePageState extends State<HomePage> {
   String _sortOption = 'ID Crescente';
   String _cartSortOption = 'ID Crescente';
 
-  final TextEditingController _nameCtrl = TextEditingController();
-  final TextEditingController _emailCtrl = TextEditingController();
-  final TextEditingController _minAgeCtrl = TextEditingController();
-  final TextEditingController _maxAgeCtrl = TextEditingController();
-  final TextEditingController _limitSearchCtrl = TextEditingController(text: '10');
-  String _selectedGender = 'Todos';
+  // Filtros ativos
+  final TextEditingController _filterNameCtrl = TextEditingController();
+  final TextEditingController _filterEmailCtrl = TextEditingController();
+  String _filterGender = 'Todos';
   bool _caseInsensitive = true;
 
   @override
@@ -180,11 +178,8 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     _limitCtrl.dispose();
-    _nameCtrl.dispose();
-    _emailCtrl.dispose();
-    _minAgeCtrl.dispose();
-    _maxAgeCtrl.dispose();
-    _limitSearchCtrl.dispose();
+    _filterNameCtrl.dispose();
+    _filterEmailCtrl.dispose();
     super.dispose();
   }
 
@@ -256,6 +251,7 @@ class _HomePageState extends State<HomePage> {
       _filteredUsers = List.from(_allUsers);
       _totalUsers = _allUsers.length;
     });
+    _applyFilters(); // aplica filtros ativos automaticamente
   }
 
   Future<void> _fetchCarts() async {
@@ -267,6 +263,38 @@ class _HomePageState extends State<HomePage> {
           .map((json) => Cart.fromJson(json))
           .toList();
       _totalCarts = _allCarts.length;
+    });
+  }
+
+  // Filtros ativos
+  void _applyFilters() {
+    setState(() {
+      _filteredUsers = _allUsers.where((user) {
+        bool matches = true;
+
+        if (_filterNameCtrl.text.isNotEmpty) {
+          final name = _caseInsensitive ? user.fullName.toLowerCase() : user.fullName;
+          final searchName = _caseInsensitive ? _filterNameCtrl.text.toLowerCase() : _filterNameCtrl.text;
+          matches = matches && name.contains(searchName);
+        }
+
+        if (_filterEmailCtrl.text.isNotEmpty) {
+          final email = _caseInsensitive ? user.email.toLowerCase() : user.email;
+          final searchEmail = _caseInsensitive ? _filterEmailCtrl.text.toLowerCase() : _filterEmailCtrl.text;
+          matches = matches && email.contains(searchEmail);
+        }
+
+        if (_filterGender != 'Todos') {
+          final gender = _caseInsensitive ? user.gender.toLowerCase() : user.gender;
+          final searchGender = _caseInsensitive ? _filterGender.toLowerCase() : _filterGender;
+          matches = matches && gender == searchGender;
+        }
+
+        return matches;
+      }).toList();
+
+      _totalUsers = _filteredUsers.length;
+      _usersPage = 1;
     });
   }
 
@@ -312,218 +340,6 @@ class _HomePageState extends State<HomePage> {
 
   void _navigateCarts(int page) {
     setState(() => _cartsPage = page);
-  }
-
-  void _applyFilters() {
-    setState(() {
-      _filteredUsers = _allUsers.where((user) {
-        bool matches = true;
-
-        if (_nameCtrl.text.isNotEmpty) {
-          final name = _caseInsensitive 
-              ? user.fullName.toLowerCase() 
-              : user.fullName;
-          final searchName = _caseInsensitive 
-              ? _nameCtrl.text.toLowerCase() 
-              : _nameCtrl.text;
-          matches = matches && name.contains(searchName);
-        }
-
-        if (_emailCtrl.text.isNotEmpty) {
-          final email = _caseInsensitive 
-              ? user.email.toLowerCase() 
-              : user.email;
-          final searchEmail = _caseInsensitive 
-              ? _emailCtrl.text.toLowerCase() 
-              : _emailCtrl.text;
-          matches = matches && email.contains(searchEmail);
-        }
-
-        if (_selectedGender != 'Todos') {
-          final gender = _caseInsensitive 
-              ? user.gender.toLowerCase() 
-              : user.gender;
-          final searchGender = _caseInsensitive 
-              ? _selectedGender.toLowerCase() 
-              : _selectedGender;
-          matches = matches && gender == searchGender;
-        }
-
-        if (_minAgeCtrl.text.isNotEmpty) {
-          final minAge = int.tryParse(_minAgeCtrl.text) ?? 0;
-          matches = matches && user.age >= minAge;
-        }
-
-        if (_maxAgeCtrl.text.isNotEmpty) {
-          final maxAge = int.tryParse(_maxAgeCtrl.text) ?? 999;
-          matches = matches && user.age <= maxAge;
-        }
-
-        return matches;
-      }).toList();
-      
-      final searchLimit = int.tryParse(_limitSearchCtrl.text) ?? 10;
-      if (searchLimit > 0) {
-        _limit = searchLimit;
-        _limitCtrl.text = searchLimit.toString();
-      }
-      
-      _totalUsers = _filteredUsers.length;
-      _usersPage = 1;
-    });
-  }
-
-  void _clearFilters() {
-    setState(() {
-      _nameCtrl.clear();
-      _emailCtrl.clear();
-      _minAgeCtrl.clear();
-      _maxAgeCtrl.clear();
-      _limitSearchCtrl.text = '10';
-      _selectedGender = 'Todos';
-      _caseInsensitive = true;
-      _filteredUsers = List.from(_allUsers);
-      _totalUsers = _allUsers.length;
-      _usersPage = 1;
-      _limit = 10;
-      _limitCtrl.text = '10';
-    });
-  }
-
-  void _showSearchModal() {
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => AlertDialog(
-          title: const Text('Busca Combinada'),
-          content: SizedBox(
-            width: 400,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: _nameCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Nome (contém)',
-                      prefixIcon: Icon(Icons.person),
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _emailCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Email (contém)',
-                      prefixIcon: Icon(Icons.email),
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    value: _selectedGender,
-                    decoration: const InputDecoration(
-                      labelText: 'Gênero',
-                      prefixIcon: Icon(Icons.people),
-                      border: OutlineInputBorder(),
-                    ),
-                    items: const [
-                      DropdownMenuItem(value: 'Todos', child: Text('Todos')),
-                      DropdownMenuItem(value: 'male', child: Text('Masculino')),
-                      DropdownMenuItem(value: 'female', child: Text('Feminino')),
-                    ],
-                    onChanged: (value) {
-                      setModalState(() {
-                        _selectedGender = value ?? 'Todos';
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _minAgeCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Idade mín.',
-                            prefixIcon: Icon(Icons.trending_up),
-                            border: OutlineInputBorder(),
-                          ),
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextField(
-                          controller: _maxAgeCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Idade máx.',
-                            prefixIcon: Icon(Icons.trending_down),
-                            border: OutlineInputBorder(),
-                          ),
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _limitSearchCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Limite de resultados',
-                      prefixIcon: Icon(Icons.filter_list),
-                      border: OutlineInputBorder(),
-                    ),
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  ),
-                  const SizedBox(height: 12),
-                  CheckboxListTile(
-                    title: const Text('Busca insensível a maiúsculas/minúsculas'),
-                    subtitle: const Text('"Ana" encontrará "ana", "ANA", etc.'),
-                    value: _caseInsensitive,
-                    onChanged: (value) {
-                      setModalState(() {
-                        _caseInsensitive = value ?? true;
-                      });
-                    },
-                    controlAffinity: ListTileControlAffinity.leading,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                _clearFilters();
-                Navigator.of(context).pop();
-              },
-              child: const Text('Limpar'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancelar'),
-            ),
-            FilledButton(
-              onPressed: () {
-                if (_nameCtrl.text.trim().isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Nome é obrigatório')),
-                  );
-                  return;
-                }
-                _applyFilters();
-                Navigator.of(context).pop();
-              },
-              child: const Text('Buscar'),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   void _openCart(Cart c) {
@@ -647,14 +463,52 @@ class _HomePageState extends State<HomePage> {
                       padding: const EdgeInsets.symmetric(
                           vertical: 16, horizontal: 16)),
                 ),
+              ],
+            ),
+          ),
+          // FILTROS DIRETOS DE USUÁRIOS
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _filterNameCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Filtrar por nome',
+                      prefixIcon: Icon(Icons.person),
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (_) => _applyFilters(),
+                  ),
+                ),
                 const SizedBox(width: 8),
-                FilledButton.icon(
-                  onPressed: _loading ? null : _showSearchModal,
-                  icon: const Icon(Icons.filter_alt),
-                  label: const Text('Busca Combinada'),
-                  style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 16, horizontal: 16)),
+                Expanded(
+                  child: TextField(
+                    controller: _filterEmailCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Filtrar por email',
+                      prefixIcon: Icon(Icons.email),
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (_) => _applyFilters(),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                DropdownButton<String>(
+                  value: _filterGender,
+                  items: const [
+                    DropdownMenuItem(value: 'Todos', child: Text('Todos')),
+                    DropdownMenuItem(value: 'male', child: Text('Masculino')),
+                    DropdownMenuItem(value: 'female', child: Text('Feminino')),
+                  ],
+                  onChanged: (v) {
+                    if (v == null) return;
+                    setState(() {
+                      _filterGender = v;
+                      _applyFilters();
+                    });
+                  },
                 ),
               ],
             ),
