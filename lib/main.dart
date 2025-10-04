@@ -166,7 +166,8 @@ class _HomePageState extends State<HomePage> {
   final TextEditingController _emailCtrl = TextEditingController();
   final TextEditingController _minAgeCtrl = TextEditingController();
   final TextEditingController _maxAgeCtrl = TextEditingController();
-  final TextEditingController _limitSearchCtrl = TextEditingController(text: '10');
+  final TextEditingController _limitSearchCtrl =
+      TextEditingController(text: '10');
   String _selectedGender = 'Todos';
   bool _caseInsensitive = true;
 
@@ -293,17 +294,26 @@ class _HomePageState extends State<HomePage> {
 
   List<Cart> get _carts {
     final sorted = [..._allCarts];
+
+    final filteredUserIds = _filteredUsers.map((u) => u.id).toSet();
+    final filteredCarts =
+        sorted.where((c) => filteredUserIds.contains(c.userId)).toList();
+
     switch (_cartSortOption) {
       case 'ID Crescente':
-        sorted.sort((a, b) => a.id.compareTo(b.id));
+        filteredCarts.sort((a, b) => a.id.compareTo(b.id));
         break;
       case 'ID Decrescente':
-        sorted.sort((a, b) => b.id.compareTo(a.id));
+        filteredCarts.sort((a, b) => b.id.compareTo(a.id));
         break;
     }
+
     final start = (_cartsPage - 1) * _limit;
+    if (start >= filteredCarts.length) return [];
+
     final end = start + _limit;
-    return sorted.sublist(start, end > sorted.length ? sorted.length : end);
+    return filteredCarts.sublist(
+        start, end > filteredCarts.length ? filteredCarts.length : end);
   }
 
   void _navigateUsers(int page) {
@@ -320,31 +330,27 @@ class _HomePageState extends State<HomePage> {
         bool matches = true;
 
         if (_nameCtrl.text.isNotEmpty) {
-          final name = _caseInsensitive 
-              ? user.fullName.toLowerCase() 
-              : user.fullName;
-          final searchName = _caseInsensitive 
-              ? _nameCtrl.text.toLowerCase() 
-              : _nameCtrl.text;
+          final name =
+              _caseInsensitive ? user.fullName.toLowerCase() : user.fullName;
+          final searchName =
+              _caseInsensitive ? _nameCtrl.text.toLowerCase() : _nameCtrl.text;
           matches = matches && name.contains(searchName);
         }
 
         if (_emailCtrl.text.isNotEmpty) {
-          final email = _caseInsensitive 
-              ? user.email.toLowerCase() 
-              : user.email;
-          final searchEmail = _caseInsensitive 
-              ? _emailCtrl.text.toLowerCase() 
+          final email =
+              _caseInsensitive ? user.email.toLowerCase() : user.email;
+          final searchEmail = _caseInsensitive
+              ? _emailCtrl.text.toLowerCase()
               : _emailCtrl.text;
           matches = matches && email.contains(searchEmail);
         }
 
         if (_selectedGender != 'Todos') {
-          final gender = _caseInsensitive 
-              ? user.gender.toLowerCase() 
-              : user.gender;
-          final searchGender = _caseInsensitive 
-              ? _selectedGender.toLowerCase() 
+          final gender =
+              _caseInsensitive ? user.gender.toLowerCase() : user.gender;
+          final searchGender = _caseInsensitive
+              ? _selectedGender.toLowerCase()
               : _selectedGender;
           matches = matches && gender == searchGender;
         }
@@ -361,13 +367,13 @@ class _HomePageState extends State<HomePage> {
 
         return matches;
       }).toList();
-      
+
       final searchLimit = int.tryParse(_limitSearchCtrl.text) ?? 10;
       if (searchLimit > 0) {
         _limit = searchLimit;
         _limitCtrl.text = searchLimit.toString();
       }
-      
+
       _totalUsers = _filteredUsers.length;
       _usersPage = 1;
     });
@@ -430,7 +436,8 @@ class _HomePageState extends State<HomePage> {
                     items: const [
                       DropdownMenuItem(value: 'Todos', child: Text('Todos')),
                       DropdownMenuItem(value: 'male', child: Text('Masculino')),
-                      DropdownMenuItem(value: 'female', child: Text('Feminino')),
+                      DropdownMenuItem(
+                          value: 'female', child: Text('Feminino')),
                     ],
                     onChanged: (value) {
                       setModalState(() {
@@ -450,7 +457,9 @@ class _HomePageState extends State<HomePage> {
                             border: OutlineInputBorder(),
                           ),
                           keyboardType: TextInputType.number,
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly
+                          ],
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -463,7 +472,9 @@ class _HomePageState extends State<HomePage> {
                             border: OutlineInputBorder(),
                           ),
                           keyboardType: TextInputType.number,
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly
+                          ],
                         ),
                       ),
                     ],
@@ -481,7 +492,8 @@ class _HomePageState extends State<HomePage> {
                   ),
                   const SizedBox(height: 12),
                   CheckboxListTile(
-                    title: const Text('Busca insensível a maiúsculas/minúsculas'),
+                    title:
+                        const Text('Busca insensível a maiúsculas/minúsculas'),
                     subtitle: const Text('"Ana" encontrará "ana", "ANA", etc.'),
                     value: _caseInsensitive,
                     onChanged: (value) {
@@ -767,15 +779,28 @@ class _HomePageState extends State<HomePage> {
                     ),
                   )
                 else
-                  ..._carts.map((c) => Card(
-                        child: ListTile(
-                          onTap: () => _openCart(c),
-                          title: Text('Cart #${c.id} • User ${c.userId}'),
-                          subtitle: Text(
-                              '${c.totalProducts} prod. / ${c.totalQuantity} itens • total: ${c.total} (desc: ${c.discountedTotal})'),
-                          trailing: const Icon(Icons.shopping_cart_outlined),
-                        ),
-                      )),
+                  ..._carts.map((c) {
+                    final user =
+                        _filteredUsers.firstWhere((u) => u.id == c.userId,
+                            orElse: () => User(
+                                  id: 0,
+                                  firstName: 'Desconhecido',
+                                  lastName: '',
+                                  username: '',
+                                  email: '',
+                                  age: 0,
+                                  gender: '',
+                                ));
+                    return Card(
+                      child: ListTile(
+                        onTap: () => _openCart(c),
+                        title: Text('Cart #${c.id} • ${user.fullName}'),
+                        subtitle: Text(
+                            '${c.totalProducts} prod. / ${c.totalQuantity} itens • total: ${c.total} (desc: ${c.discountedTotal})'),
+                        trailing: const Icon(Icons.shopping_cart_outlined),
+                      ),
+                    );
+                  }),
               ],
             ),
           ),
