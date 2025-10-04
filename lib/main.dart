@@ -144,7 +144,6 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final _qtyCtrl = TextEditingController(text: '10');
   late TextEditingController _limitCtrl;
   int _limit = 10;
 
