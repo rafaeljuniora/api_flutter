@@ -24,7 +24,6 @@ class DummyJsonApp extends StatelessWidget {
   }
 }
 
-/// --- TELA DE LOGIN ---------------------------------------------------------
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -35,9 +34,10 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final _api = DummyJsonApi();
   final _form = GlobalKey<FormState>();
-  final _userCtrl = TextEditingController(text: 'emilys'); // exemplo
-  final _passCtrl = TextEditingController(text: 'emilyspass'); // exemplo
+  final _userCtrl = TextEditingController(text: 'emilys');
+  final _passCtrl = TextEditingController(text: 'emilyspass');
   bool _loading = false;
+
   String? _error;
 
   Future<void> _submit() async {
@@ -57,8 +57,8 @@ class _LoginPageState extends State<LoginPage> {
           builder: (_) => HomePage(api: _api),
         ),
       );
-    } catch (e) {
-      setState(() => _error = e.toString());
+    } catch (_) {
+      setState(() => _error = 'Usuário ou senha incorretos. Tente novamente.');
     } finally {
       setState(() => _loading = false);
     }
@@ -92,8 +92,9 @@ class _LoginPageState extends State<LoginPage> {
                         labelText: 'Username',
                         prefixIcon: Icon(Icons.person),
                       ),
-                      validator: (v) =>
-                          (v == null || v.trim().isEmpty) ? 'Informe o user' : null,
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Informe o user'
+                          : null,
                     ),
                     const SizedBox(height: 8),
                     TextFormField(
@@ -134,7 +135,6 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-/// --- HOME: campo de texto para filtros e listas de Users/Carts ------------------
 class HomePage extends StatefulWidget {
   const HomePage({super.key, required this.api});
   final DummyJsonApi api;
@@ -157,8 +157,12 @@ class _HomePageState extends State<HomePage> {
 
   bool _loading = false;
   String? _error;
-  List<User> _users = const [];
-  List<Cart> _carts = const [];
+
+  List<User> _allUsers = [];
+  List<Cart> _allCarts = [];
+
+  String _sortOption = 'ID Crescente';
+  String _cartSortOption = 'ID Crescente';
 
   @override
   void initState() {
@@ -202,6 +206,10 @@ class _HomePageState extends State<HomePage> {
       _loading = true;
       _error = null;
     });
+
+    bool userError = false;
+    bool cartError = false;
+
     try {
       await Future.wait([
         _fetchUsers(),
@@ -212,6 +220,21 @@ class _HomePageState extends State<HomePage> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+
+    if (!mounted) return;
+
+    setState(() {
+      if (userError && cartError) {
+        _error = 'Erro ao encontrar registro.';
+      } else if (userError) {
+        _error = 'Erro ao encontrar usuário.';
+      } else if (cartError) {
+        _error = 'Erro ao encontrar carrinho.';
+      } else {
+        _error = null;
+      }
+      _loading = false;
+    });
   }
 
   /// --- USUÁRIOS COM FILTROS AVANÇADOS
@@ -270,26 +293,59 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _fetchCarts() async {
-    final skip = (_cartsPage - 1) * _limit;
-    final response = await widget.api.getLatestCarts(limit: _limit, skip: skip);
+    final response = await widget.api.getLatestCarts(limit: 0, skip: 0);
     if (!mounted) return;
 
     setState(() {
-      _carts = (response['carts'] as List)
+      _allCarts = (response['carts'] as List)
           .map((json) => Cart.fromJson(json))
           .toList();
-      _totalCarts = response['total'];
+      _totalCarts = _allCarts.length;
     });
+  }
+
+  List<User> get _users {
+    final sorted = [..._allUsers];
+    switch (_sortOption) {
+      case 'ID Crescente':
+        sorted.sort((a, b) => a.id.compareTo(b.id));
+        break;
+      case 'ID Decrescente':
+        sorted.sort((a, b) => b.id.compareTo(a.id));
+        break;
+      case 'Nome Crescente':
+        sorted.sort((a, b) => a.fullName.compareTo(b.fullName));
+        break;
+      case 'Nome Decrescente':
+        sorted.sort((a, b) => b.fullName.compareTo(a.fullName));
+        break;
+    }
+    final start = (_usersPage - 1) * _limit;
+    final end = start + _limit;
+    return sorted.sublist(start, end > sorted.length ? sorted.length : end);
+  }
+
+  List<Cart> get _carts {
+    final sorted = [..._allCarts];
+    switch (_cartSortOption) {
+      case 'ID Crescente':
+        sorted.sort((a, b) => a.id.compareTo(b.id));
+        break;
+      case 'ID Decrescente':
+        sorted.sort((a, b) => b.id.compareTo(a.id));
+        break;
+    }
+    final start = (_cartsPage - 1) * _limit;
+    final end = start + _limit;
+    return sorted.sublist(start, end > sorted.length ? sorted.length : end);
   }
 
   void _navigateUsers(int page) {
     setState(() => _usersPage = page);
-    _fetchUsers();
   }
 
   void _navigateCarts(int page) {
     setState(() => _cartsPage = page);
-    _fetchCarts();
   }
 
   void _openCart(Cart c) {
@@ -307,7 +363,8 @@ class _HomePageState extends State<HomePage> {
                 children: [
                   Text(
                     'Carrinho #${c.id} • User ${c.userId}',
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
                   Expanded(
@@ -315,13 +372,15 @@ class _HomePageState extends State<HomePage> {
                         ? const Center(child: Text('Sem itens neste carrinho.'))
                         : ListView.separated(
                             itemCount: c.products.length,
-                            separatorBuilder: (_, __) => const Divider(height: 1),
+                            separatorBuilder: (_, __) =>
+                                const Divider(height: 1),
                             itemBuilder: (context, i) {
                               final p = c.products[i];
                               return ListTile(
                                 dense: true,
                                 title: Text(p.title),
-                                subtitle: Text('${p.quantity} × ${p.price} = ${p.total}'),
+                                subtitle: Text(
+                                    '${p.quantity} × ${p.price} = ${p.total}'),
                                 trailing: Text('#${p.id}'),
                               );
                             },
@@ -364,12 +423,15 @@ class _HomePageState extends State<HomePage> {
       children: [
         IconButton(
           icon: const Icon(Icons.chevron_left),
-          onPressed: currentPage > 1 ? () => onPageChanged(currentPage - 1) : null,
+          onPressed:
+              currentPage > 1 ? () => onPageChanged(currentPage - 1) : null,
         ),
         Text('Página $currentPage de $totalPages'),
         IconButton(
           icon: const Icon(Icons.chevron_right),
-          onPressed: currentPage < totalPages ? () => onPageChanged(currentPage + 1) : null,
+          onPressed: currentPage < totalPages
+              ? () => onPageChanged(currentPage + 1)
+              : null,
         ),
       ],
     );
@@ -467,7 +529,8 @@ class _HomePageState extends State<HomePage> {
               children: [
                 const SizedBox(height: 12),
                 const Text('Usuários',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 _buildPaginationControls(
                   currentPage: _usersPage,
                   totalItems: _totalUsers,
@@ -488,22 +551,31 @@ class _HomePageState extends State<HomePage> {
                     )),
                 const SizedBox(height: 16),
                 const Text('Carrinhos',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 _buildPaginationControls(
                   currentPage: _cartsPage,
                   totalItems: _totalCarts,
                   onPageChanged: _navigateCarts,
                 ),
                 const SizedBox(height: 8),
-                ..._carts.map((c) => Card(
-                      child: ListTile(
-                        onTap: () => _openCart(c),
-                        title: Text('Cart #${c.id} • User ${c.userId}'),
-                        subtitle: Text(
-                            '${c.totalProducts} prod. / ${c.totalQuantity} itens • total: ${c.total} (desc: ${c.discountedTotal})'),
-                        trailing: const Icon(Icons.shopping_cart_outlined),
-                      ),
-                    )),
+                if (_carts.isEmpty)
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text('Nenhum carrinho encontrado.'),
+                    ),
+                  )
+                else
+                  ..._carts.map((c) => Card(
+                        child: ListTile(
+                          onTap: () => _openCart(c),
+                          title: Text('Cart #${c.id} • User ${c.userId}'),
+                          subtitle: Text(
+                              '${c.totalProducts} prod. / ${c.totalQuantity} itens • total: ${c.total} (desc: ${c.discountedTotal})'),
+                          trailing: const Icon(Icons.shopping_cart_outlined),
+                        ),
+                      )),
               ],
             ),
           ),
