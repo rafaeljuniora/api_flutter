@@ -4,7 +4,6 @@ import 'models/user.dart';
 import 'models/cart.dart';
 import 'services/dummyjson_api.dart';
 import 'package:flutter/material.dart';
-
 void main() {
   runApp(const DummyJsonApp());
 }
