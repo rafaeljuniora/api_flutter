@@ -37,6 +37,7 @@ class _LoginPageState extends State<LoginPage> {
   final _userCtrl = TextEditingController(text: 'emilys');
   final _passCtrl = TextEditingController(text: 'emilyspass');
   bool _loading = false;
+
   String? _error;
 
   Future<void> _submit() async {
@@ -91,8 +92,9 @@ class _LoginPageState extends State<LoginPage> {
                         labelText: 'Username',
                         prefixIcon: Icon(Icons.person),
                       ),
-                      validator: (v) =>
-                          (v == null || v.trim().isEmpty) ? 'Informe o user' : null,
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Informe o user'
+                          : null,
                     ),
                     const SizedBox(height: 8),
                     TextFormField(
@@ -142,7 +144,6 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final _qtyCtrl = TextEditingController(text: '10');
   late TextEditingController _limitCtrl;
   int _limit = 10;
 
@@ -153,10 +154,12 @@ class _HomePageState extends State<HomePage> {
 
   bool _loading = false;
   String? _error;
-  List<User> _users = const [];
-  List<Cart> _carts = const [];
+
+  List<User> _allUsers = [];
+  List<Cart> _allCarts = [];
 
   String _sortOption = 'ID Crescente';
+  String _cartSortOption = 'ID Crescente';
 
   @override
   void initState() {
@@ -212,8 +215,6 @@ class _HomePageState extends State<HomePage> {
       cartError = true;
     }
 
-    _applySort();
-
     if (!mounted) return;
 
     setState(() {
@@ -231,58 +232,71 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _fetchUsers() async {
-    final skip = (_usersPage - 1) * _limit;
-    final response = await widget.api.getLatestUsers(limit: _limit, skip: skip);
+    final response = await widget.api.getLatestUsers(limit: 0, skip: 0);
     if (!mounted) return;
 
     setState(() {
-      _users = (response['users'] as List)
+      _allUsers = (response['users'] as List)
           .map((json) => User.fromJson(json))
           .toList();
-      _totalUsers = response['total'];
+      _totalUsers = _allUsers.length;
     });
   }
 
   Future<void> _fetchCarts() async {
-    final skip = (_cartsPage - 1) * _limit;
-    final response = await widget.api.getLatestCarts(limit: _limit, skip: skip);
+    final response = await widget.api.getLatestCarts(limit: 0, skip: 0);
     if (!mounted) return;
 
     setState(() {
-      _carts = (response['carts'] as List)
+      _allCarts = (response['carts'] as List)
           .map((json) => Cart.fromJson(json))
           .toList();
-      _totalCarts = response['total'];
+      _totalCarts = _allCarts.length;
     });
+  }
+
+  List<User> get _users {
+    final sorted = [..._allUsers];
+    switch (_sortOption) {
+      case 'ID Crescente':
+        sorted.sort((a, b) => a.id.compareTo(b.id));
+        break;
+      case 'ID Decrescente':
+        sorted.sort((a, b) => b.id.compareTo(a.id));
+        break;
+      case 'Nome Crescente':
+        sorted.sort((a, b) => a.fullName.compareTo(b.fullName));
+        break;
+      case 'Nome Decrescente':
+        sorted.sort((a, b) => b.fullName.compareTo(a.fullName));
+        break;
+    }
+    final start = (_usersPage - 1) * _limit;
+    final end = start + _limit;
+    return sorted.sublist(start, end > sorted.length ? sorted.length : end);
+  }
+
+  List<Cart> get _carts {
+    final sorted = [..._allCarts];
+    switch (_cartSortOption) {
+      case 'ID Crescente':
+        sorted.sort((a, b) => a.id.compareTo(b.id));
+        break;
+      case 'ID Decrescente':
+        sorted.sort((a, b) => b.id.compareTo(a.id));
+        break;
+    }
+    final start = (_cartsPage - 1) * _limit;
+    final end = start + _limit;
+    return sorted.sublist(start, end > sorted.length ? sorted.length : end);
   }
 
   void _navigateUsers(int page) {
     setState(() => _usersPage = page);
-    _fetchUsers();
   }
 
   void _navigateCarts(int page) {
     setState(() => _cartsPage = page);
-    _fetchCarts();
-  }
-
-  void _applySort() {
-    setState(() {
-      switch (_sortOption) {
-        case 'ID Crescente':
-          _users.sort((a, b) => a.id.compareTo(b.id));
-          break;
-        case 'ID Decrescente':
-          _users.sort((a, b) => b.id.compareTo(a.id));
-          break;
-        case 'Nome Crescente':
-          _users.sort((a, b) => a.fullName.compareTo(b.fullName));
-          break;
-        case 'Nome Decrescente':
-          _users.sort((a, b) => b.fullName.compareTo(a.fullName));
-          break;
-      }
-    });
   }
 
   void _openCart(Cart c) {
@@ -430,10 +444,29 @@ class _HomePageState extends State<HomePage> {
                   ],
                   onChanged: (v) {
                     if (v == null) return;
-                    setState(() {
-                      _sortOption = v;
-                      _applySort();
-                    });
+                    setState(() => _sortOption = v);
+                  },
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            child: Row(
+              children: [
+                const Text("Ordenar carrinhos por: "),
+                const SizedBox(width: 8),
+                DropdownButton<String>(
+                  value: _cartSortOption,
+                  items: const [
+                    DropdownMenuItem(
+                        value: 'ID Crescente', child: Text('ID Crescente')),
+                    DropdownMenuItem(
+                        value: 'ID Decrescente', child: Text('ID Decrescente')),
+                  ],
+                  onChanged: (v) {
+                    if (v == null) return;
+                    setState(() => _cartSortOption = v);
                   },
                 ),
               ],
@@ -471,8 +504,9 @@ class _HomePageState extends State<HomePage> {
                           leading: CircleAvatar(
                             backgroundImage:
                                 u.image != null ? NetworkImage(u.image!) : null,
-                            child:
-                                u.image == null ? const Icon(Icons.person) : null,
+                            child: u.image == null
+                                ? const Icon(Icons.person)
+                                : null,
                           ),
                           title: Text(u.fullName),
                           subtitle: Text('@${u.username} • ${u.email}'),
