@@ -87,7 +87,7 @@ class DummyJsonApi {
   Future<Map<String, dynamic>> getLatestUsers(
       {int limit = 10, int skip = 0}) async {
     final uri = Uri.parse(
-        '$baseUrl/users?limit=$limit&skip=$skip&select=id,firstName,lastName,username,email,image');
+        '$baseUrl/users?limit=$limit&skip=$skip&select=id,firstName,lastName,username,email,image,age,gender');
     final res = await _getWithRetry(uri);
 
     if (res.statusCode != 200) {
